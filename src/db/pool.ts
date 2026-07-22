@@ -18,8 +18,24 @@ export async function initSchema(): Promise<void> {
       title VARCHAR(255) NOT NULL,
       blocks JSON NOT NULL,
       published BOOLEAN NOT NULL DEFAULT FALSE,
+      slug VARCHAR(255) UNIQUE,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  await pool.query(`ALTER TABLE pages ADD COLUMN IF NOT EXISTS slug VARCHAR(255) UNIQUE`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS products (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      page_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      price DECIMAL(10,2) NOT NULL DEFAULT 0,
+      image_path VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
     )
   `);
 }

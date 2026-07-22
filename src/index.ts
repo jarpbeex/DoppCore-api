@@ -1,14 +1,20 @@
 import cors from "cors";
 import express from "express";
+import path from "path";
 import { initSchema } from "./db/pool";
 import { pagesRouter } from "./routes/pages";
+import { productsRouter } from "./routes/products";
+import { publicRouter } from "./routes/public";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/pages/:pageId/products", productsRouter);
 app.use("/pages", pagesRouter);
+app.use("/public", publicRouter);
 
 const PORT = Number(process.env.PORT || 4000);
 
