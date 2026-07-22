@@ -28,15 +28,23 @@ export const productsRouter = Router({ mergeParams: true });
 productsRouter.use(requireAuth);
 
 async function requireOwnedPage(req: AuthedRequest, res: Response, next: NextFunction) {
-  const [rows]: any = await pool.query("SELECT id FROM pages WHERE id = ? AND user_id = ?", [
+  const [rows]: any = await pool.query("SELECT id, type FROM pages WHERE id = ? AND user_id = ?", [
     req.params.pageId,
     req.userId,
   ]);
   if (!rows.length) return res.status(404).json({ error: "Page not found" });
+  (req as any).pageType = rows[0].type;
   next();
 }
 
 productsRouter.use(requireOwnedPage);
+
+function requireCatalogEnabled(req: AuthedRequest, res: Response, next: NextFunction) {
+  if ((req as any).pageType !== "store") {
+    return res.status(400).json({ error: "El catálogo solo está disponible para páginas de tipo 'store'" });
+  }
+  next();
+}
 
 function mapProduct(row: any) {
   return {
@@ -59,7 +67,7 @@ productsRouter.get("/", async (req: AuthedRequest, res) => {
   res.json(rows.map(mapProduct));
 });
 
-productsRouter.post("/", upload.single("image"), async (req: AuthedRequest, res) => {
+productsRouter.post("/", requireCatalogEnabled, upload.single("image"), async (req: AuthedRequest, res) => {
   const { name, description, price } = req.body;
   if (!name || price === undefined) {
     return res.status(400).json({ error: "name y price son requeridos" });

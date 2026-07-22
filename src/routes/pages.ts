@@ -5,11 +5,14 @@ import { slugify } from "../lib/slugify";
 
 export const pagesRouter = Router();
 
+const PAGE_TYPES = ["landing", "blog", "store"] as const;
+type PageType = (typeof PAGE_TYPES)[number];
+
 pagesRouter.use(requireAuth);
 
 pagesRouter.get("/", async (req: AuthedRequest, res) => {
   const [rows] = await pool.query(
-    "SELECT id, user_id AS userId, title, blocks, published, slug, created_at AS createdAt, updated_at AS updatedAt FROM pages WHERE user_id = ? ORDER BY updated_at DESC",
+    "SELECT id, user_id AS userId, title, type, blocks, published, slug, created_at AS createdAt, updated_at AS updatedAt FROM pages WHERE user_id = ? ORDER BY updated_at DESC",
     [req.userId]
   );
   res.json(rows);
@@ -17,7 +20,7 @@ pagesRouter.get("/", async (req: AuthedRequest, res) => {
 
 pagesRouter.get("/:id", async (req: AuthedRequest, res) => {
   const [rows]: any = await pool.query(
-    "SELECT id, user_id AS userId, title, blocks, published, slug, created_at AS createdAt, updated_at AS updatedAt FROM pages WHERE id = ? AND user_id = ?",
+    "SELECT id, user_id AS userId, title, type, blocks, published, slug, created_at AS createdAt, updated_at AS updatedAt FROM pages WHERE id = ? AND user_id = ?",
     [req.params.id, req.userId]
   );
   if (!rows.length) return res.status(404).json({ error: "Page not found" });
@@ -25,17 +28,30 @@ pagesRouter.get("/:id", async (req: AuthedRequest, res) => {
 });
 
 pagesRouter.post("/", async (req: AuthedRequest, res) => {
-  const { title, blocks } = req.body;
+  const { title, blocks, type } = req.body;
   if (!title) return res.status(400).json({ error: "title is required" });
+  if (type !== undefined && !PAGE_TYPES.includes(type)) {
+    return res.status(400).json({ error: `type must be one of: ${PAGE_TYPES.join(", ")}` });
+  }
+  const pageType: PageType = type ?? "landing";
   const [result]: any = await pool.query(
-    "INSERT INTO pages (user_id, title, blocks) VALUES (?, ?, ?)",
-    [req.userId, title, JSON.stringify(blocks ?? [])]
+    "INSERT INTO pages (user_id, title, type, blocks) VALUES (?, ?, ?, ?)",
+    [req.userId, title, pageType, JSON.stringify(blocks ?? [])]
   );
-  res.status(201).json({ id: result.insertId, userId: req.userId, title, blocks: blocks ?? [] });
+  res.status(201).json({
+    id: result.insertId,
+    userId: req.userId,
+    title,
+    type: pageType,
+    blocks: blocks ?? [],
+  });
 });
 
 pagesRouter.put("/:id", async (req: AuthedRequest, res) => {
-  const { title, blocks, published } = req.body;
+  const { title, blocks, published, type } = req.body;
+  if (type !== undefined && !PAGE_TYPES.includes(type)) {
+    return res.status(400).json({ error: `type must be one of: ${PAGE_TYPES.join(", ")}` });
+  }
   const [existing]: any = await pool.query("SELECT id FROM pages WHERE id = ? AND user_id = ?", [
     req.params.id,
     req.userId,
@@ -43,8 +59,15 @@ pagesRouter.put("/:id", async (req: AuthedRequest, res) => {
   if (!existing.length) return res.status(404).json({ error: "Page not found" });
 
   await pool.query(
-    "UPDATE pages SET title = COALESCE(?, title), blocks = COALESCE(?, blocks), published = COALESCE(?, published) WHERE id = ? AND user_id = ?",
-    [title ?? null, blocks ? JSON.stringify(blocks) : null, published ?? null, req.params.id, req.userId]
+    "UPDATE pages SET title = COALESCE(?, title), type = COALESCE(?, type), blocks = COALESCE(?, blocks), published = COALESCE(?, published) WHERE id = ? AND user_id = ?",
+    [
+      title ?? null,
+      type ?? null,
+      blocks ? JSON.stringify(blocks) : null,
+      published ?? null,
+      req.params.id,
+      req.userId,
+    ]
   );
   res.json({ ok: true });
 });

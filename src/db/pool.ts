@@ -16,6 +16,7 @@ export async function initSchema(): Promise<void> {
       id INT AUTO_INCREMENT PRIMARY KEY,
       user_id VARCHAR(64) NOT NULL,
       title VARCHAR(255) NOT NULL,
+      type VARCHAR(20) NOT NULL DEFAULT 'landing',
       blocks JSON NOT NULL,
       published BOOLEAN NOT NULL DEFAULT FALSE,
       slug VARCHAR(255) UNIQUE,
@@ -24,6 +25,9 @@ export async function initSchema(): Promise<void> {
     )
   `);
   await pool.query(`ALTER TABLE pages ADD COLUMN IF NOT EXISTS slug VARCHAR(255) UNIQUE`);
+  await pool.query(
+    `ALTER TABLE pages ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'landing'`
+  );
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
