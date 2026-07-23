@@ -54,10 +54,11 @@ function mapProduct(row: any) {
     description: row.description,
     price: Number(row.price),
     imagePath: row.image_path,
+    category: row.category,
   };
 }
 
-const SELECT_FIELDS = "id, page_id, name, description, price, image_path";
+const SELECT_FIELDS = "id, page_id, name, description, price, image_path, category";
 
 productsRouter.get("/", async (req: AuthedRequest, res) => {
   const [rows]: any = await pool.query(
@@ -68,14 +69,14 @@ productsRouter.get("/", async (req: AuthedRequest, res) => {
 });
 
 productsRouter.post("/", requireCatalogEnabled, upload.single("image"), async (req: AuthedRequest, res) => {
-  const { name, description, price } = req.body;
+  const { name, description, price, category } = req.body;
   if (!name || price === undefined) {
     return res.status(400).json({ error: "name y price son requeridos" });
   }
   const imagePath = req.file ? `/uploads/products/${req.file.filename}` : null;
   const [result]: any = await pool.query(
-    "INSERT INTO products (page_id, name, description, price, image_path) VALUES (?, ?, ?, ?, ?)",
-    [req.params.pageId, name, description ?? null, price, imagePath]
+    "INSERT INTO products (page_id, name, description, price, image_path, category) VALUES (?, ?, ?, ?, ?, ?)",
+    [req.params.pageId, name, description ?? null, price, imagePath, category ?? null]
   );
   const [rows]: any = await pool.query(`SELECT ${SELECT_FIELDS} FROM products WHERE id = ?`, [
     result.insertId,
@@ -90,12 +91,12 @@ productsRouter.put("/:productId", upload.single("image"), async (req: AuthedRequ
   );
   if (!existing.length) return res.status(404).json({ error: "Product not found" });
 
-  const { name, description, price } = req.body;
+  const { name, description, price, category } = req.body;
   const imagePath = req.file ? `/uploads/products/${req.file.filename}` : existing[0].image_path;
 
   await pool.query(
-    "UPDATE products SET name = COALESCE(?, name), description = COALESCE(?, description), price = COALESCE(?, price), image_path = ? WHERE id = ?",
-    [name ?? null, description ?? null, price ?? null, imagePath, req.params.productId]
+    "UPDATE products SET name = COALESCE(?, name), description = COALESCE(?, description), price = COALESCE(?, price), image_path = ?, category = COALESCE(?, category) WHERE id = ?",
+    [name ?? null, description ?? null, price ?? null, imagePath, category ?? null, req.params.productId]
   );
   const [rows]: any = await pool.query(`SELECT ${SELECT_FIELDS} FROM products WHERE id = ?`, [
     req.params.productId,

@@ -28,6 +28,10 @@ export async function initSchema(): Promise<void> {
   await pool.query(
     `ALTER TABLE pages ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'landing'`
   );
+  await pool.query(`ALTER TABLE pages ADD COLUMN IF NOT EXISTS logo_path VARCHAR(255)`);
+  await pool.query(`ALTER TABLE pages ADD COLUMN IF NOT EXISTS nav_items JSON`);
+  await pool.query(`ALTER TABLE pages ADD COLUMN IF NOT EXISTS cta JSON`);
+  await pool.query(`ALTER TABLE pages ADD COLUMN IF NOT EXISTS blog_subtitle VARCHAR(500)`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
@@ -37,6 +41,21 @@ export async function initSchema(): Promise<void> {
       description TEXT,
       price DECIMAL(10,2) NOT NULL DEFAULT 0,
       image_path VARCHAR(255),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
+    )
+  `);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS category VARCHAR(100)`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS posts (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      page_id INT NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      excerpt VARCHAR(500),
+      cover_image_path VARCHAR(255),
+      content TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       FOREIGN KEY (page_id) REFERENCES pages(id) ON DELETE CASCADE
